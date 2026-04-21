@@ -3,7 +3,9 @@ import { obfuscateSelectionCommand } from './commands/obfuscateSelection';
 import { loadEnvironment } from './config/env';
 
 export function activate(context: vscode.ExtensionContext): void {
-	loadEnvironment();
+	console.log('Extension path:', context.extensionPath);
+
+	loadEnvironment(context.extensionPath);
 
 	const disposable = vscode.commands.registerCommand(
 		'llm-c-obfuscator.obfuscateSelection',
