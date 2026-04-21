@@ -37,7 +37,7 @@ export class MockProvider implements LLMProvider {
 		return {
 			rawText: code,
 			providerId: this.providerId,
-			modelId: request.modelId,
+			modelId: 'mock-v1',
 			notes: [
 				'Mock provider executed.',
 				`Prompt version used: ${request.prompt.version}`,

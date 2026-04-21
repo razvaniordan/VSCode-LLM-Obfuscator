@@ -1,16 +1,30 @@
 import {
+	CompileCheckResult,
+	ExperimentRecord,
 	ObfuscationRequest,
-	ObfuscationResult
+	ObfuscationResult,
+	SanityCheckResult
 } from './types';
 import { ProviderFactory } from '../providers/providerFactory';
 import { PromptManager } from '../prompts/promptManager';
 import { ResultNormalizer } from './resultNormalizer';
+import { CSanityCheck } from '../validation/cSanityCheck';
+import { CompileCheck } from '../validation/compileCheck';
+import { ExperimentLogger } from '../logging/experimentLogger';
+import { makeRunId, makeTimestamp } from '../util/time';
+import { getGlobalStoragePath } from '../services/appPaths';
 
 export class ObfuscationOrchestrator {
 	private readonly promptManager = new PromptManager();
 	private readonly resultNormalizer = new ResultNormalizer();
+	private readonly sanityCheck = new CSanityCheck();
+	private readonly compileCheck = new CompileCheck();
+	private readonly experimentLogger = new ExperimentLogger(getGlobalStoragePath());
 
 	public async run(request: ObfuscationRequest): Promise<ObfuscationResult> {
+		const runId = makeRunId();
+		const timestamp = makeTimestamp();
+
 		const provider = ProviderFactory.create(request.providerId);
 		const prompt = this.promptManager.load(request.category);
 
@@ -22,6 +36,38 @@ export class ObfuscationOrchestrator {
 		});
 
 		const normalized = this.resultNormalizer.normalize(providerResponse.rawText);
+		const sanityCheckResult: SanityCheckResult = this.sanityCheck.run(normalized.code);
+		const compileCheckResult: CompileCheckResult = this.compileCheck.run(normalized.code, runId);
+
+		const notes = [
+			...providerResponse.notes,
+			...normalized.warnings,
+			...sanityCheckResult.warnings
+		];
+
+		const artifactPaths = this.experimentLogger.saveCodeArtifacts(
+			runId,
+			request.sourceCode,
+			normalized.code
+		);
+
+		const record: ExperimentRecord = {
+			runId,
+			timestamp,
+			providerId: providerResponse.providerId,
+			modelId: providerResponse.modelId,
+			category: request.category,
+			promptVersion: prompt.version,
+			sourceLengthChars: request.sourceCode.length,
+			obfuscatedLengthChars: normalized.code.length,
+			sourceFilePath: artifactPaths.sourceFilePath,
+			obfuscatedFilePath: artifactPaths.obfuscatedFilePath,
+			notes,
+			sanityCheck: sanityCheckResult,
+			compileCheck: compileCheckResult
+		};
+
+		this.experimentLogger.saveRecord(record, artifactPaths.recordPath);
 
 		return {
 			obfuscatedCode: normalized.code,
@@ -29,7 +75,11 @@ export class ObfuscationOrchestrator {
 			modelId: providerResponse.modelId,
 			category: request.category,
 			promptVersion: prompt.version,
-			notes: [...providerResponse.notes, ...normalized.warnings]
+			notes: [
+				...notes,
+				`Run ID: ${runId}`,
+				`Compile success: ${compileCheckResult.succeeded}`
+			]
 		};
 	}
 }

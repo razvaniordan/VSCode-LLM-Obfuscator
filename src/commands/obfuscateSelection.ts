@@ -54,7 +54,7 @@ export async function obfuscateSelectionCommand(): Promise<void> {
 		await openResultDocument(result.obfuscatedCode);
 
 		void vscode.window.showInformationMessage(
-			`Obfuscation completed with ${result.providerId}/${result.modelId} (${result.category}, prompt ${result.promptVersion}).`
+			`Obfuscation completed with ${result.providerId}/${result.modelId} (${result.category}, prompt ${result.promptVersion}). Experiment log saved.`
 		);
 
 		console.log('Obfuscation notes:', result.notes);

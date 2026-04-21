@@ -36,3 +36,35 @@ export interface NormalizedCodeResult {
 	code: string;
 	warnings: string[];
 }
+
+export interface SanityCheckResult {
+	passed: boolean;
+	warnings: string[];
+}
+
+export interface CompileCheckResult {
+	attempted: boolean;
+	succeeded: boolean;
+	compiler: string;
+	commandLine: string;
+	stdout: string;
+	stderr: string;
+	outputBinaryPath?: string;
+	errorMessage?: string;
+}
+
+export interface ExperimentRecord {
+	runId: string;
+	timestamp: string;
+	providerId: string;
+	modelId: string;
+	category: ObfuscationCategory;
+	promptVersion: string;
+	sourceLengthChars: number;
+	obfuscatedLengthChars: number;
+	sourceFilePath: string;
+	obfuscatedFilePath: string;
+	notes: string[];
+	sanityCheck: SanityCheckResult;
+	compileCheck: CompileCheckResult;
+}
