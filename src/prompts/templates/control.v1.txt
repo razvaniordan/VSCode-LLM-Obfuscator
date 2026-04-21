@@ -1,0 +1,6 @@
+Transform this C code using code control obfuscation only.
+Preserve semantics exactly.
+Prefer safe control-flow restructuring.
+Do not introduce undefined behavior.
+Do not change public function signatures.
+Return valid C code only.

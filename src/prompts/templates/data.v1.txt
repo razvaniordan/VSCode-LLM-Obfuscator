@@ -1,0 +1,6 @@
+Transform this C code using data obfuscation only.
+Preserve behavior exactly.
+Hide direct literals and simple data representation where safe.
+Do not introduce undefined behavior.
+Do not change public function signatures.
+Return valid C code only.

@@ -1,0 +1,7 @@
+Transform this C code using layout obfuscation only.
+Preserve behavior exactly.
+Rename internal identifiers to meaningless names.
+Remove comments.
+Reduce formatting clarity.
+Do not change public function signatures.
+Return valid C code only.
