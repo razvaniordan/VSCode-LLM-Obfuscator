@@ -1,8 +1,10 @@
 import * as vscode from 'vscode';
 import { ObfuscationOrchestrator } from '../core/orchestrator';
 import { pickObfuscationCategory } from '../ui/quickPick';
-import { getExtensionSettings } from '../ui/configuration';
 import { pickProvider } from '../ui/providerPick';
+import { pickModel } from '../ui/modelPick';
+import { pickObfuscationScope } from '../ui/scopePick';
+import { validateFunctionSelection } from '../validation/functionSelection';
 
 async function openResultDocument(code: string): Promise<void> {
 	const doc = await vscode.workspace.openTextDocument({
@@ -23,10 +25,13 @@ export async function obfuscateSelectionCommand(): Promise<void> {
 		return;
 	}
 
-	const selectedText = editor.document.getText(editor.selection);
+	if (editor.document.languageId !== 'c') {
+		void vscode.window.showWarningMessage('Please open a C source file first.');
+		return;
+	}
 
-	if (!selectedText || selectedText.trim().length === 0) {
-		void vscode.window.showWarningMessage('Please select some C code first.');
+	const scope = await pickObfuscationScope();
+	if (!scope) {
 		return;
 	}
 
@@ -40,21 +45,55 @@ export async function obfuscateSelectionCommand(): Promise<void> {
 		return;
 	}
 
-	const settings = getExtensionSettings();
+	const modelId = await pickModel(providerId);
+	if (!modelId) {
+		return;
+	}
+
+	const fullDocumentCode = editor.document.getText();
+	let sourceCode = fullDocumentCode;
+	let selectionStartOffset: number | undefined;
+	let selectionEndOffset: number | undefined;
+	let selectionStartLine: number | undefined;
+	let selectionEndLine: number | undefined;
+
+	if (scope === 'function') {
+		const validation = validateFunctionSelection(editor);
+
+		if (!validation.valid) {
+			void vscode.window.showWarningMessage(
+				validation.message ?? 'Invalid function selection.'
+			);
+			return;
+		}
+
+		sourceCode = validation.selectedCode!;
+		selectionStartOffset = validation.startOffset;
+		selectionEndOffset = validation.endOffset;
+		selectionStartLine = validation.startLine;
+		selectionEndLine = validation.endLine;
+	}
+
 	const orchestrator = new ObfuscationOrchestrator();
 
 	try {
 		const result = await orchestrator.run({
-			sourceCode: selectedText,
+			sourceCode,
+			fullDocumentCode,
 			category,
+			scope,
 			providerId,
-			modelId: settings.modelId
+			modelId,
+			selectionStartOffset,
+			selectionEndOffset,
+			selectionStartLine,
+			selectionEndLine
 		});
 
-		await openResultDocument(result.obfuscatedCode);
+		await openResultDocument(result.reconstructedFullCode);
 
 		void vscode.window.showInformationMessage(
-			`Obfuscation completed with ${result.providerId}/${result.modelId} (${result.category}, prompt ${result.promptVersion}). Experiment log saved.`
+			`Obfuscation completed with ${result.providerId}/${result.modelId} (${result.category}, ${result.scope}).`
 		);
 
 		console.log('Obfuscation notes:', result.notes);

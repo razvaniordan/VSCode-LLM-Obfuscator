@@ -17,7 +17,3 @@ export function activate(context: vscode.ExtensionContext): void {
 
 	context.subscriptions.push(disposable);
 }
-
-export function deactivate(): void {
-	// Nothing to clean up yet.
-}

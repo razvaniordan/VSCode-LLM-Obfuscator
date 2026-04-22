@@ -6,7 +6,9 @@
   "engines": {
     "vscode": "^1.116.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "activationEvents": [
     "onCommand:llm-c-obfuscator.obfuscateSelection"
   ],
@@ -15,7 +17,7 @@
     "commands": [
       {
         "command": "llm-c-obfuscator.obfuscateSelection",
-        "title": "LLM C Obfuscator: Obfuscate Selected C Code"
+        "title": "LLM C Obfuscator: Obfuscate Current File or Function"
       }
     ]
   },
@@ -48,17 +50,9 @@
     "typescript-eslint": "^8.56.1"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.90.0",
+    "@google/genai": "^1.50.1",
     "dotenv": "^17.4.2",
     "openai": "^6.34.0"
-  },
-  "configuration": {
-    "title": "LLM C Obfuscator",
-    "properties": {
-      "llm-c-obfuscator.model": {
-        "type": "string",
-        "default": "gpt-5.4-mini",
-        "description": "Model name to send to the selected provider."
-      }
-    }
   }
 }

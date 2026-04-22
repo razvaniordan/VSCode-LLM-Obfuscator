@@ -36,8 +36,9 @@ export class ObfuscationOrchestrator {
 		});
 
 		const normalized = this.resultNormalizer.normalize(providerResponse.rawText);
+		const reconstructedFullCode = this.reconstructFullCode(request, normalized.code);
 		const sanityCheckResult: SanityCheckResult = this.sanityCheck.run(normalized.code);
-		const compileCheckResult: CompileCheckResult = this.compileCheck.run(normalized.code, runId);
+		const compileCheckResult: CompileCheckResult = this.compileCheck.run(reconstructedFullCode, runId);
 
 		const notes = [
 			...providerResponse.notes,
@@ -47,8 +48,8 @@ export class ObfuscationOrchestrator {
 
 		const artifactPaths = this.experimentLogger.saveCodeArtifacts(
 			runId,
-			request.sourceCode,
-			normalized.code
+			request.fullDocumentCode,
+			reconstructedFullCode
 		);
 
 		const record: ExperimentRecord = {
@@ -57,12 +58,17 @@ export class ObfuscationOrchestrator {
 			providerId: providerResponse.providerId,
 			modelId: providerResponse.modelId,
 			category: request.category,
+			scope: request.scope,
 			promptVersion: prompt.version,
-			sourceLengthChars: request.sourceCode.length,
-			obfuscatedLengthChars: normalized.code.length,
+			sourceLengthChars: request.fullDocumentCode.length,
+			obfuscatedLengthChars: reconstructedFullCode.length,
 			sourceFilePath: artifactPaths.sourceFilePath,
 			obfuscatedFilePath: artifactPaths.obfuscatedFilePath,
 			notes,
+			selectionStartOffset: request.selectionStartOffset,
+			selectionEndOffset: request.selectionEndOffset,
+			selectionStartLine: request.selectionStartLine,
+			selectionEndLine: request.selectionEndLine,
 			sanityCheck: sanityCheckResult,
 			compileCheck: compileCheckResult
 		};
@@ -71,15 +77,36 @@ export class ObfuscationOrchestrator {
 
 		return {
 			obfuscatedCode: normalized.code,
+			reconstructedFullCode,
 			providerId: providerResponse.providerId,
 			modelId: providerResponse.modelId,
 			category: request.category,
+			scope: request.scope,
 			promptVersion: prompt.version,
+			runId,
 			notes: [
 				...notes,
 				`Run ID: ${runId}`,
 				`Compile success: ${compileCheckResult.succeeded}`
 			]
 		};
+	}
+
+	private reconstructFullCode(request: ObfuscationRequest, transformedCode: string): string {
+		if (request.scope === 'file') {
+			return transformedCode;
+		}
+
+		if (
+			request.selectionStartOffset === undefined ||
+			request.selectionEndOffset === undefined
+		) {
+			throw new Error('Missing selection offsets for function-scope obfuscation.');
+		}
+
+		const before = request.fullDocumentCode.slice(0, request.selectionStartOffset);
+		const after = request.fullDocumentCode.slice(request.selectionEndOffset);
+
+		return `${before}${transformedCode}${after}`;
 	}
 }
