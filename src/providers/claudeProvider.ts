@@ -1,19 +1,16 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { ProviderGenerateRequest, ProviderGenerateResponse } from '../core/types';
+import { ProviderGenerateRequest, ProviderGenerateResponse, ProviderFunctionalTestGenerationRequest, ProviderFunctionalTestGenerationResponse } from '../core/types';
+import { buildFunctionalTestSystemText, buildFunctionalTestUserText } from '../prompts/functionalTestPromptBuilder';
 import { LLMProvider } from './llmProvider';
 import { getRequiredEnv } from '../config/env';
 
 export class ClaudeProvider implements LLMProvider {
 	public readonly providerId = 'claude';
 
-	public async generate(
-		request: ProviderGenerateRequest
-	): Promise<ProviderGenerateResponse> {
+	public async generate(request: ProviderGenerateRequest): Promise<ProviderGenerateResponse> {
 		const apiKey = getRequiredEnv('ANTHROPIC_API_KEY');
 
-		const client = new Anthropic({
-			apiKey
-		});
+		const client = new Anthropic({ apiKey });
 
 		const systemPrompt = [
 			'You are an expert C source-code obfuscation assistant.',
@@ -71,6 +68,44 @@ export class ClaudeProvider implements LLMProvider {
 				'Claude provider executed.',
 				`Prompt version used: ${request.prompt.version}`,
 				`Category: ${request.category}`
+			]
+		};
+	}
+
+	public async generateFunctionalTests(request: ProviderFunctionalTestGenerationRequest): Promise<ProviderFunctionalTestGenerationResponse> {
+		const apiKey = getRequiredEnv('ANTHROPIC_API_KEY');
+
+		const client = new Anthropic({ apiKey });
+
+		const response = await client.messages.create({
+			model: request.modelId,
+			max_tokens: 3000,
+			system: buildFunctionalTestSystemText(),
+			messages: [
+				{
+					role: 'user',
+					content: buildFunctionalTestUserText(request.sourceCode, request.maxRegressionTests)
+				}
+			]
+		});
+
+		const outputText = response.content
+			.filter((block) => block.type === 'text')
+			.map((block) => block.text)
+			.join('\n')
+			.trim();
+
+		if (!outputText) {
+			throw new Error('Claude returned an empty functional test response.');
+		}
+
+		return {
+			rawText: outputText,
+			providerId: this.providerId,
+			modelId: request.modelId,
+			notes: [
+				'Claude functional test generator executed.',
+				`Requested max regression tests: ${request.maxRegressionTests}`
 			]
 		};
 	}

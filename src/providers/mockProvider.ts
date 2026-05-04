@@ -1,4 +1,4 @@
-import { ProviderGenerateRequest, ProviderGenerateResponse } from '../core/types';
+import { ProviderGenerateRequest, ProviderGenerateResponse, ProviderFunctionalTestGenerationRequest, ProviderFunctionalTestGenerationResponse } from '../core/types';
 import { LLMProvider } from './llmProvider';
 
 export class MockProvider implements LLMProvider {
@@ -42,6 +42,29 @@ export class MockProvider implements LLMProvider {
 				'Mock provider executed.',
 				`Prompt version used: ${request.prompt.version}`,
 				`Category: ${request.category}`
+			]
+		};
+	}
+
+	public async generateFunctionalTests(request: ProviderFunctionalTestGenerationRequest): Promise<ProviderFunctionalTestGenerationResponse> {
+		return {
+			rawText: JSON.stringify({
+				strategy: 'regression',
+				reason: 'Mock provider generated one default regression test.',
+				regressionTests: [
+					{
+						name: 'default execution',
+						args: [],
+						stdin: '',
+						timeoutMs: 10000
+					}
+				]
+			}),
+			providerId: this.providerId,
+			modelId: 'mock-v1',
+			notes: [
+				'Mock functional test generator executed.',
+				`Requested max regression tests: ${request.maxRegressionTests}`
 			]
 		};
 	}

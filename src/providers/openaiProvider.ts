@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
-import { ProviderGenerateRequest, ProviderGenerateResponse } from '../core/types';
+import { ProviderGenerateRequest, ProviderGenerateResponse, ProviderFunctionalTestGenerationRequest, ProviderFunctionalTestGenerationResponse } from '../core/types';
+import { buildFunctionalTestSystemText, buildFunctionalTestUserText } from '../prompts/functionalTestPromptBuilder';
 import { LLMProvider } from './llmProvider';
 import { getRequiredEnv } from '../config/env';
 
@@ -75,6 +76,51 @@ export class OpenAIProvider implements LLMProvider {
 				'OpenAI provider executed.',
 				`Prompt version used: ${request.prompt.version}`,
 				`Category: ${request.category}`
+			]
+		};
+	}
+
+	public async generateFunctionalTests(request: ProviderFunctionalTestGenerationRequest): Promise<ProviderFunctionalTestGenerationResponse> {
+		const apiKey = getRequiredEnv('OPENAI_API_KEY');
+
+		const client = new OpenAI({ apiKey });
+
+		const inputList = [
+			{
+				role: 'system' as const,
+				content: [
+					{
+						type: 'input_text' as const,
+						text: buildFunctionalTestSystemText()
+					}
+				]
+			},
+			{
+				role: 'user' as const,
+				content: [
+					{
+						type: 'input_text' as const,
+						text: buildFunctionalTestUserText(request.sourceCode, request.maxRegressionTests)
+					}
+				]
+			}
+		];
+
+		const response = await client.responses.create({model: request.modelId, input: inputList});
+
+		const outputText = response.output_text?.trim();
+
+		if (!outputText) {
+			throw new Error('OpenAI returned an empty functional test response.');
+		}
+
+		return {
+			rawText: outputText,
+			providerId: this.providerId,
+			modelId: request.modelId,
+			notes: [
+				'OpenAI functional test generator executed.',
+				`Requested max regression tests: ${request.maxRegressionTests}`
 			]
 		};
 	}

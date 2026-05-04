@@ -1,5 +1,10 @@
 import * as path from 'path';
-import { ExperimentRecord } from '../core/types';
+import {
+	AiFunctionalTestPlan,
+	ExperimentRecord,
+	RegressionTestReport,
+	UnitTestReport
+} from '../core/types';
 import { ensureDirectoryExists, writeJsonFile, writeTextFile } from '../util/fs';
 
 export interface LoggedArtifactPaths {
@@ -7,6 +12,13 @@ export interface LoggedArtifactPaths {
 	recordPath: string;
 	sourceFilePath: string;
 	obfuscatedFilePath: string;
+}
+
+export interface FunctionalTestingArtifactPaths {
+	testPlanFilePath: string;
+	unitReportFilePath?: string;
+	regressionReportFilePath?: string;
+	harnessFilePath?: string;
 }
 
 export class ExperimentLogger {
@@ -17,7 +29,11 @@ export class ExperimentLogger {
 		ensureDirectoryExists(this.runsDir);
 	}
 
-	public saveCodeArtifacts(runId: string, sourceCode: string, obfuscatedCode: string): LoggedArtifactPaths {
+	public saveCodeArtifacts(
+		runId: string,
+		sourceCode: string,
+		obfuscatedCode: string
+	): LoggedArtifactPaths {
 		const runDir = path.join(this.runsDir, runId);
 		ensureDirectoryExists(runDir);
 
@@ -33,6 +49,45 @@ export class ExperimentLogger {
 			recordPath,
 			sourceFilePath,
 			obfuscatedFilePath
+		};
+	}
+
+	public saveFunctionalTestingArtifacts(
+		runId: string,
+		testPlan: AiFunctionalTestPlan,
+		unitReport?: UnitTestReport,
+		regressionReport?: RegressionTestReport
+	): FunctionalTestingArtifactPaths {
+		const runDir = path.join(this.runsDir, runId);
+		ensureDirectoryExists(runDir);
+
+		const testPlanFilePath = path.join(runDir, 'ai-test-plan.json');
+		writeJsonFile(testPlanFilePath, testPlan);
+
+		let unitReportFilePath: string | undefined;
+		let regressionReportFilePath: string | undefined;
+		let harnessFilePath: string | undefined;
+
+		if (testPlan.unitTestHarnessCode) {
+			harnessFilePath = path.join(runDir, 'unit-test-harness.c');
+			writeTextFile(harnessFilePath, testPlan.unitTestHarnessCode);
+		}
+
+		if (unitReport) {
+			unitReportFilePath = path.join(runDir, 'unit-test-report.json');
+			writeJsonFile(unitReportFilePath, unitReport);
+		}
+
+		if (regressionReport) {
+			regressionReportFilePath = path.join(runDir, 'regression-test-report.json');
+			writeJsonFile(regressionReportFilePath, regressionReport);
+		}
+
+		return {
+			testPlanFilePath,
+			unitReportFilePath,
+			regressionReportFilePath,
+			harnessFilePath
 		};
 	}
 

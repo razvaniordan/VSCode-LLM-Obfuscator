@@ -1,4 +1,5 @@
-import { ProviderGenerateRequest, ProviderGenerateResponse } from '../core/types';
+import { ProviderGenerateRequest, ProviderGenerateResponse, ProviderFunctionalTestGenerationRequest, ProviderFunctionalTestGenerationResponse } from '../core/types';
+import { buildFunctionalTestSystemText, buildFunctionalTestUserText } from '../prompts/functionalTestPromptBuilder';
 import { LLMProvider } from './llmProvider';
 import { getRequiredEnv } from '../config/env';
 
@@ -59,6 +60,43 @@ export class GeminiProvider implements LLMProvider {
 				'Gemini provider executed.',
 				`Prompt version used: ${request.prompt.version}`,
 				`Category: ${request.category}`
+			]
+		};
+	}
+
+	public async generateFunctionalTests(request: ProviderFunctionalTestGenerationRequest): Promise<ProviderFunctionalTestGenerationResponse> {
+		const apiKey = getRequiredEnv('GEMINI_API_KEY');
+
+		const { GoogleGenAI } = await import('@google/genai');
+
+		const ai = new GoogleGenAI({ apiKey });
+
+		const prompt = [
+			'SYSTEM INSTRUCTIONS:',
+			buildFunctionalTestSystemText(),
+			'',
+			'USER REQUEST:',
+			buildFunctionalTestUserText(request.sourceCode, request.maxRegressionTests)
+		].join('\n');
+
+		const response = await ai.models.generateContent({
+			model: request.modelId,
+			contents: prompt
+		});
+
+		const outputText = response.text?.trim();
+
+		if (!outputText) {
+			throw new Error('Gemini returned an empty functional test response.');
+		}
+
+		return {
+			rawText: outputText,
+			providerId: this.providerId,
+			modelId: request.modelId,
+			notes: [
+				'Gemini functional test generator executed.',
+				`Requested max regression tests: ${request.maxRegressionTests}`
 			]
 		};
 	}

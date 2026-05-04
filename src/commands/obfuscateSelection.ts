@@ -5,6 +5,7 @@ import { pickProvider } from '../ui/providerPick';
 import { pickModel } from '../ui/modelPick';
 import { pickObfuscationScope } from '../ui/scopePick';
 import { validateFunctionSelection } from '../validation/functionSelection';
+import { askMaxRegressionTests, askRunFunctionalTesting } from '../ui/functionalTestingPick';
 
 async function openResultDocument(code: string): Promise<void> {
 	const doc = await vscode.workspace.openTextDocument({
@@ -50,6 +51,21 @@ export async function obfuscateSelectionCommand(): Promise<void> {
 		return;
 	}
 
+	const runFunctionalTests = await askRunFunctionalTesting();
+	if (runFunctionalTests === undefined) {
+		return;
+	}
+
+	let maxRegressionTests: number | undefined;
+
+	if (runFunctionalTests) {
+		maxRegressionTests = await askMaxRegressionTests();
+
+		if (!maxRegressionTests) {
+			return;
+		}
+	}
+
 	const fullDocumentCode = editor.document.getText();
 	let sourceCode = fullDocumentCode;
 	let selectionStartOffset: number | undefined;
@@ -62,7 +78,7 @@ export async function obfuscateSelectionCommand(): Promise<void> {
 
 		if (!validation.valid) {
 			void vscode.window.showWarningMessage(
-				validation.message ?? 'Invalid function selection.'
+				`${validation.message ?? 'Invalid function selection.'} Select the whole function definition, including its signature and body.`
 			);
 			return;
 		}
@@ -87,13 +103,15 @@ export async function obfuscateSelectionCommand(): Promise<void> {
 			selectionStartOffset,
 			selectionEndOffset,
 			selectionStartLine,
-			selectionEndLine
+			selectionEndLine,
+			runFunctionalTests,
+			maxRegressionTests
 		});
 
 		await openResultDocument(result.reconstructedFullCode);
 
 		void vscode.window.showInformationMessage(
-			`Obfuscation completed with ${result.providerId}/${result.modelId} (${result.category}, ${result.scope}).`
+			`Obfuscation completed with ${result.providerId}/${result.modelId}. Compile: ${result.compileChecks.obfuscated.succeeded ? 'passed' : 'failed'}. Functional tests: ${result.functionalTesting?.enabled ? String(result.functionalTesting.passed) : 'disabled'}.`
 		);
 
 		console.log('Obfuscation notes:', result.notes);

@@ -1,0 +1,62 @@
+export function buildFunctionalTestSystemText(): string {
+	return [
+		'You are an expert C software testing assistant.',
+		'Your task is to generate functionality tests for an original C source file.',
+		'You must decide whether the file is suitable for unit-style tests, black-box regression tests, both, or neither.',
+		'Follow these rules strictly:',
+		'1. Return only valid JSON.',
+		'2. Do not include Markdown fences, comments, or explanation outside JSON.',
+		'3. Do not invent expected outputs.',
+		'4. The original program will be executed to obtain expected outputs.',
+		'5. Unit tests must be generated as a single C test harness.',
+		'6. Regression tests must use command-line args and stdin only.',
+		'7. Prefer deterministic and safe tests.',
+		'8. Avoid tests that require network, filesystem side effects, system-specific paths, or long-running behavior.',
+		'9. If the source is not suitable for a test type, do not force that test type.',
+		'10. For every regression test, set timeoutMs to 10000.'
+	].join('\n');
+}
+
+export function buildFunctionalTestUserText(sourceCode: string, maxRegressionTests: number): string {
+	return [
+		`Generate functionality tests for the following C source file.`,
+		`Generate up to ${maxRegressionTests} regression tests if regression testing is suitable.`,
+		'',
+		'Return JSON with exactly this shape:',
+		'{',
+		'  "strategy": "none | unit | regression | both",',
+		'  "reason": "short reason for the chosen strategy",',
+		'  "unitTestHarnessCode": "optional C test harness code as a string",',
+		'  "regressionTests": [',
+		'    {',
+		'      "name": "short descriptive name",',
+		'      "args": [],',
+		'      "stdin": "stdin content, can contain \\n",',
+		'      "timeoutMs": 10000',
+		'    }',
+		'  ]',
+		'}',
+		'',
+		'Rules for unitTestHarnessCode:',
+		'- Include the candidate source file using exactly: #include "candidate.c"',
+		'- If the original source contains main, avoid duplicate main by using:',
+		'  #define main candidate_original_main',
+		'  #include "candidate.c"',
+		'  #undef main',
+		'- Then define your own int main(void) test runner.',
+		'- Use assert or explicit checks that return non-zero on failure.',
+		'- Prefer testing stable callable functions visible in the file.',
+		'- Do not call functions that require dangerous external side effects.',
+		'',
+		'Rules for regressionTests:',
+		'- args must be an array of strings.',
+		'- stdin must be a string.',
+		'- timeoutMs must be between 500 and 10000.',
+		'- Do not include expected stdout, stderr, or exit code.',
+		'',
+		'C source code:',
+		'```c',
+		sourceCode,
+		'```'
+	].join('\n');
+}
